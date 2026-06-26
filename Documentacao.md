@@ -8,6 +8,8 @@
 
 ## ⚠️ Aviso Importante
 
+Essa é uma versão adaptada da documentação para a Medicar. Para a versão completa e oficial, visite o site da Totvs em [https://tdn.totvs.com/pages/releaseview.action?pageId=691456568]
+
 Todos os exemplos contidos nesta documentação são **ilustrativos**. Dados como CPF, matrícula, contratos e nomes são fictícios e não retornarão resultado real no ambiente de produção.
 
 ---
@@ -1458,4 +1460,3 @@ Body: { subscriberId, reason, blockDate, loginUser }
 
 ---
 
-*Documento consolidado a partir de: Documentação_API_de_Beneficiarios.pdf, API_PLIncBenModel.pdf, API_PLAltBenModel.pdf e collection Postman JSON_Api_integração_Beneficiarios.*
