@@ -8,7 +8,7 @@
 
 ## ⚠️ Aviso Importante
 
-Essa é uma versão adaptada da documentação para a Medicar. Para a versão completa e oficial, [visite o site da TOTVS](https://tdn.totvs.com/pages/releaseview.action?pageId=691456568)
+Essa é uma versão adaptada da documentação para a Medicar. Para a versão completa e oficial, [visite o site da TOTVS](https://tdn.totvs.com/pages/releaseview.action?pageId=794393323)
 
 Todos os exemplos contidos nesta documentação são **ilustrativos**. Dados como CPF, matrícula, contratos e nomes são fictícios e não retornarão resultado real no ambiente de produção.
 
