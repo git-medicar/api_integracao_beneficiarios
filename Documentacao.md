@@ -14,32 +14,6 @@ Todos os exemplos contidos nesta documentação são **ilustrativos**. Dados com
 
 ---
 
-## Sumário
-
-1. [Visão Geral](#1-visão-geral)
-2. [Arquitetura da Integração](#2-arquitetura-da-integração)
-3. [Ambiente e Pré-requisitos](#3-ambiente-e-pré-requisitos)
-4. [Fluxos de Negócio](#4-fluxos-de-negócio)
-5. [Endpoints](#5-endpoints)
-   - 5.1 [Autenticação — Token](#51-autenticação--token)
-   - 5.2 [Consulta de Dados do Contrato](#52-consulta-de-dados-do-contrato)
-   - 5.3 [Inclusão de Beneficiários — PLIncBenModel POST](#53-inclusão-de-beneficiários--plincbenmodel-post)
-   - 5.4 [Edição de Protocolo de Inclusão — PLIncBenModel PUT](#54-edição-de-protocolo-de-inclusão--plincbenmodel-put)
-   - 5.5 [Alteração de Dados Cadastrais — PLAltBenModel](#55-alteração-de-dados-cadastrais--plaltbenmodel)
-   - 5.6 [Bloqueio/Cancelamento de Beneficiários](#56-bloqueiocancelamento-de-beneficiários)
-6. [Referência de Campos](#6-referência-de-campos)
-7. [Regras de Negócio](#7-regras-de-negócio)
-8. [Validações e Formatos](#8-validações-e-formatos)
-9. [Tratamento de Erros](#9-tratamento-de-erros)
-10. [Exemplos Práticos Completos](#10-exemplos-práticos-completos)
-11. [Tabelas de Domínio](#11-tabelas-de-domínio)
-12. [Tabelas TOTVS Envolvidas](#12-tabelas-totvs-envolvidas)
-13. [Parâmetros de Sistema](#13-parâmetros-de-sistema)
-14. [Perguntas Frequentes (FAQ)](#14-perguntas-frequentes-faq)
-15. [Guia Rápido de Implementação](#15-guia-rápido-de-implementação)
-
----
-
 ## 1. Visão Geral
 
 ### O que é esta integração?
