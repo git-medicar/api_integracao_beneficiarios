@@ -26,9 +26,9 @@
         }
 
         .sidebar {
-            width: 280px;
+            width: 340px;
             background-color: #fff;
-            padding: 20px;
+            padding: 24px;
             border-right: 1px solid #e1e4e8;
             max-height: 100vh;
             overflow-y: auto;
@@ -46,11 +46,12 @@
         }
 
         .sidebar h3 {
-            font-size: 14px;
-            font-weight: 600;
+            font-size: 13px;
+            font-weight: 700;
             color: #24292e;
-            margin: 20px 0 10px 0;
+            margin: 20px 0 12px 0;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .sidebar ul {
@@ -58,7 +59,7 @@
         }
 
         .sidebar li {
-            margin: 8px 0;
+            margin: 6px 0;
         }
 
         .sidebar a {
@@ -66,9 +67,11 @@
             text-decoration: none;
             font-size: 14px;
             display: block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            transition: background-color 0.2s;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+            line-height: 1.4;
+            word-break: break-word;
         }
 
         .sidebar a:hover {
@@ -79,7 +82,18 @@
         .sidebar a.active {
             background-color: #e7f2ff;
             color: #0366d6;
-            font-weight: 500;
+            font-weight: 600;
+        }
+
+        /* Indentação para subitens */
+        .sidebar li[data-level="2"] a {
+            padding-left: 28px;
+            font-size: 13px;
+        }
+
+        .sidebar li[data-level="3"] a {
+            padding-left: 44px;
+            font-size: 12px;
         }
 
         h1, h2, h3, h4, h5, h6 {
@@ -287,13 +301,13 @@
                     a.href = `#${id}`;
                     a.textContent = heading.textContent;
 
-                    // Indent based on heading level
+                    // Define nível e atributo data-level para melhor controle CSS
                     if (heading.tagName === 'H3') {
-                        li.style.marginLeft = '16px';
-                        li.style.fontSize = '13px';
+                        li.setAttribute('data-level', '2');
                     } else if (heading.tagName === 'H4') {
-                        li.style.marginLeft = '32px';
-                        li.style.fontSize = '12px';
+                        li.setAttribute('data-level', '3');
+                    } else {
+                        li.setAttribute('data-level', '1');
                     }
 
                     li.appendChild(a);
