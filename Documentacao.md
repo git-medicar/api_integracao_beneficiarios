@@ -1,8 +1,8 @@
 # API de Integração de Beneficiários — Medicar
 
-}} **Versão do documento:** 2.0 
-}} **Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
-}} **Última revisão:** 2025
+**Versão do documento:** 2.0 
+**Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
+**Última revisão:** 2025
 
 ---
 
