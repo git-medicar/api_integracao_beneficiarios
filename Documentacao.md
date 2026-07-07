@@ -99,9 +99,9 @@ O bloqueio age diretamente, sem necessidade de aprovação manual.
 | **Porta** | `1307` (produção) / `1356` (homologação) |
 | **Formato de dados** | JSON (`Content-Type: application/json`) |
 
-}} **URL de homologação:** `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest`
+**URL de homologação:** `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest`
 
-}} ⚠️ **Fluxo de onboarding:** Credenciais são fornecidas **primeiro para homologação**. Somente após validação bem-sucedida dos testes de inclusão e bloqueio, as credenciais de produção são criadas e disponibilizadas.
+⚠️**Fluxo de onboarding:** Credenciais são fornecidas **primeiro para homologação**. Somente após validação bem-sucedida dos testes de inclusão e bloqueio, as credenciais de produção são criadas e disponibilizadas.
 
 ### Credenciais de acesso
 
@@ -117,10 +117,10 @@ O bloqueio age diretamente, sem necessidade de aprovação manual.
 
 | Ambiente | URL base | `tenantid` |
 |---|---|---|
-| **Homologação** | `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest` | `01,001001` |
-| **Produção** | `https://medicar146707.protheus.cloudtotvs.com.br:1307/rest` | `01,006001` |
+| **Homologação** | `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest` | `consultar dados` |
+| **Produção** | `https://medicar146707.protheus.cloudtotvs.com.br:1307/rest` | `consultar dados` |
 
-}} O valor correto do `tenantid` para o seu ambiente é retornado automaticamente pelo endpoint de **Consulta de Dados do Contrato** (campo `tenantid` na resposta).
+O valor do `tenantid` para o seu ambiente é retornado automaticamente pelo endpoint de **Consulta de Dados do Contrato** (campo `tenantid` na resposta), também é fornecido pela equipe Medicar.
 
 ---
 
@@ -180,10 +180,9 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 
 **Como funciona:**
 - Cada campo a ser alterado é enviado como um item no array `DETAILB7L`
-- `B7L_CAMPO`: nome exato do campo na tabela **BA1**
+- `B7L_CAMPO`: nome exato do campo na tabela **BA1**. Mesmo nome que no cadastro DETAILB2N. **Ex:** no cadastro é B2N_EMAIL, na alteração é BA1_EMAIL
 - `B7L_VLPOS`: novo valor para o campo
-- O comportamento depende do Layout Genérico configurado em `MV_PLLAYAL`:
-  - Campo sem necessidade de análise → protocolo com status `7` (Aprovado Automaticamente) → BA1 atualizada imediatamente
+- O comportamento depende do Layout configurado em `MV_PLLAYAL`:
   - Campo que exige análise → protocolo com status `2` (Em Análise) → aguarda aprovação manual
 
 **Resultado:** Protocolo de alteração gerado na rotina **PLSA977AB**.
@@ -197,13 +196,13 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 **Como funciona:**
 - Requer a matrícula do beneficiário (`subscriberId` = `BBA_MATRIC`)
 - Requer um código de motivo (`reason`) da tabela B9G
-- A data de vigência do bloqueio é definida pelo sistema cliente (`blockDate`)
+- A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio.
 
 ---
 
 ## 5. Endpoints
 
-}} **Nota sobre as URLs nos exemplos:** Todos os exemplos de request nesta seção utilizam a URL do ambiente de **homologação** (`medicar146708...1356`). Para produção, substitua pela URL `https://medicar146707.protheus.cloudtotvs.com.br:1307/rest`.
+**Nota sobre as URLs nos exemplos:** Todos os exemplos de request nesta seção utilizam a URL do ambiente de **homologação** (`medicar146708...1356`). Para produção, substitua pela URL `https://medicar146707.protheus.cloudtotvs.com.br:1307/rest`.
 
 ### 5.1 Autenticação — Token
 
@@ -252,7 +251,7 @@ POST https://medicar146708.protheus.cloudtotvs.com.br:1356/rest/api/oauth2/v1/to
 | `expires_in` | Tempo de validade em segundos (3600 = 1 hora) |
 | `token_type` | Sempre `Bearer` |
 
-}} ⚠️ **O token expira em 3600 segundos (1 hora).** Implemente renovação automática na sua integração.
+⚠️ **O token expira em 3600 segundos (1 hora).** Implemente renovação automática na sua integração.
 
 ---
 
@@ -615,7 +614,7 @@ Registra o bloqueio ou cancelamento de um beneficiário.
 | Header | Produção | Teste |
 |---|---|---|
 | `Authorization` | `Bearer {{token}}` | `Bearer {{token}}` |
-| `tenantid` | `01,006001` | `01,001001` |
+| `tenantid`(fazer consulta com get de informações do contrato)  | `01,006001` | `01,001001` |
 
 **Request Body:**
 
@@ -624,7 +623,7 @@ Registra o bloqueio ou cancelamento de um beneficiário.
   "subscriberId": "{{BBA_MATRIC do beneficiário}}",
   "reason": "{{código do motivo}}",
   "blockDate": "{{YYYY-MM-DD}}",
-  "loginUser": "{{nome do operador}}"
+  "loginUser": "{{nome do beneficiário}}"
 }
 ```
 
@@ -634,8 +633,6 @@ Registra o bloqueio ou cancelamento de um beneficiário.
 GET https://medicar146708.protheus.cloudtotvs.com.br:1356/rest/totvsHealthPlans/familyContract/v1/reasons
 Authorization: Bearer {{access_token}}
 ```
-
-}} **Informação não encontrada na documentação fornecida:** A estrutura de request/response deste endpoint auxiliar não foi documentada. Consultar a equipe Medicar.
 
 ---
 
@@ -1344,7 +1341,7 @@ R: Indica que o item não está marcado para exclusão. Em operações de PUT on
 ---
 
 **P: Como sei se o protocolo foi aprovado?**  
-R: Consulte via `GET .../PLIncBenModel/{{pk}}` ou `GET .../PLAltBenModel/{{pk}}`. Status conhecidos: `2` = Em Análise, `7` = Aprovado Automaticamente. A lista completa de status não foi documentada — consultar a equipe Medicar.
+R: Consulte via `GET .../PLIncBenModel/{{pk}}` ou `GET .../PLAltBenModel/{{pk}}`. Status conhecidos: `2` = Em Análise, `7` = Aprovado Automaticamente.
 
 ---
 
@@ -1420,7 +1417,7 @@ Body: { subscriberId, reason, blockDate, loginUser }
 **Passo 9 — Validar em homologação antes da produção**
 
 - URL: `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest`
-- `tenantid`: `01,001001`
+- `tenantid`: `01,001001` (verificar get de consulta de dados do contrato)
 - Executar todos os fluxos: inclusão, edição, alteração, bloqueio
 - Verificar os protocolos gerados na rotina PLSA977AB
 
