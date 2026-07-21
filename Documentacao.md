@@ -1,6 +1,6 @@
 # API de Integração de Beneficiários — Medicar
 
-**Versão do documento:** 2.0 
+**Versão do documento:** 2.1 
 **Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
 **Última revisão:** 2026
 
@@ -25,13 +25,13 @@ As operações disponíveis são:
 - **Inclusão** de novos beneficiários (titulares e dependentes)
 - **Edição** de um protocolo de inclusão ainda pendente de análise
 - **Alteração** de dados cadastrais de beneficiários já ativos
-- **Bloqueio/Cancelamento** de beneficiários
+- **Bloqueio** e **Desbloqueio** de beneficiários
 
 ### Como funciona o processo?
 
 As operações de inclusão e alteração de dados seguem um **fluxo de protocolização**: ao invés de alterar o cadastro diretamente, a API gera um **protocolo de solicitação** que fica pendente de análise pela operadora na rotina **PLSA977AB — Análise de Beneficiários**. O cadastro só é efetivado após aprovação do protocolo.
 
-O bloqueio age diretamente, sem necessidade de aprovação manual.
+O bloqueio e o desbloqueio agem diretamente, sem necessidade de aprovação manual.
 
 ### Casos de uso típicos
 
@@ -63,8 +63,9 @@ O bloqueio age diretamente, sem necessidade de aprovação manual.
 ┌─────────┐    ┌─────────┐    ┌──────────────────┐    ┌──────────────┐
 │  Início │───►│  Token  │───►│ Dados do Contrato│───►│  Operação    │
 └─────────┘    └─────────┘    └──────────────────┘    │  (Inclusão,  │
-                    │                   │             │  Alteração   │
-               access_token        tenantid +         │  ou Bloqueio)│
+                    │                   │             │  Alteração,  │
+               access_token        tenantid +         │  Bloqueio ou │
+                                                        │  Desbloqueio)│
                                    BBA_MATRIC         └──────┬───────┘
                                                              │
                                                   ┌──────────▼────────┐
@@ -101,7 +102,7 @@ O bloqueio age diretamente, sem necessidade de aprovação manual.
 
 **URL de homologação:** `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest`
 
-⚠️**Fluxo de onboarding:** Credenciais são fornecidas **primeiro para homologação**. Somente após validação bem-sucedida dos testes de inclusão e bloqueio, as credenciais de produção são criadas e disponibilizadas.
+⚠️**Fluxo de onboarding:** Credenciais são fornecidas **primeiro para homologação**. Somente após validação bem-sucedida dos testes de inclusão, bloqueio e desbloqueio, as credenciais de produção são criadas e disponibilizadas.
 
 ### Credenciais de acesso
 
@@ -187,16 +188,79 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 
 **Resultado:** Protocolo de alteração gerado na rotina **PLSA977AB**.
 
+**Campos que podem ser alterados:** Consulte a [seção 6.4](#64-detailb7l—-campos-a-alterar-plaltbenmodel) para a lista completa de campos permitidos. Os demais campos da tabela BA1 não devem ser enviados para alteração.
+
 ---
 
-### 4.4 Bloqueio/Cancelamento de Beneficiário
+### 4.4 Bloqueio de Beneficiário
 
-**Quando usar:** Para cancelar ou bloquear o acesso de um beneficiário ao plano. A operação é definitiva e não permite reativação. Caso o beneficiário precise voltar a ficar ativo, deverá ser enviado como novo beneficiário.
+**Quando usar:** Para cancelar o acesso de um beneficiário ao plano de saúde. O bloqueio age diretamente, sem necessidade de aprovação manual.
 
 **Como funciona:**
+- Utiliza o endpoint `POST .../v1/beneficiaries/blockProtocol`
 - Requer a matrícula do beneficiário (`subscriberId` = `BBA_MATRIC`)
 - Requer um código de motivo (`reason`) da tabela B9G
-- A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio.
+- A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio
+
+**Após sucesso:** A aplicação deve armazenar a data enviada em `blockDate` para eventual uso no desbloqueio futuro.
+
+---
+
+### 4.5 Desbloqueio de Beneficiário
+
+**Quando usar:** Para reativar um beneficiário que foi previamente bloqueado.
+
+**Como funciona:**
+- Utiliza **exatamente o mesmo endpoint** do bloqueio (`POST .../v1/beneficiaries/blockProtocol`)
+- O que muda em relação ao bloqueio são apenas dois parâmetros:
+  - `reason` deve ser `"000004"` (código de desbloqueio)
+  - `blockDate` deve ser **um dia anterior** à data utilizada no bloqueio
+
+> **Por que um dia anterior?** Essa regra existe para que o sistema compreenda a transição de estado: o bloqueio tem vigência a partir da `blockDate` informada, e o desbloqueio com uma data anterior indica que a vigência do bloqueio é encerrada. Utilizar a mesma data ou uma data posterior não produziria o efeito de desbloqueio esperado.
+
+**Fluxo recomendado:**
+
+1. Armazene a `blockDate` enviada no momento do bloqueio bem-sucedido
+2. Para desbloquear, envie `blockDate` = (data do bloqueio - 1 dia)
+3. Envie `reason` = `"000004"`
+4. Mantenha o mesmo `subscriberId` e `loginUser`
+
+**Exemplo de bloqueio:**
+
+```json
+{
+  "subscriberId": "10014146985124BD45",
+  "reason": "000001",
+  "blockDate": "2026-05-15",
+  "loginUser": "NOME DO BENEFICIARIO"
+}
+```
+
+Após sucesso, a aplicação deve armazenar:
+
+```
+blockDate = 2026-05-15
+```
+
+**Exemplo de desbloqueio:**
+
+```json
+{
+  "subscriberId": "10014146985124BD45",
+  "reason": "000004",
+  "blockDate": "2026-05-14",
+  "loginUser": "NOME DO BENEFICIARIO"
+}
+```
+
+> **Resumo dos parâmetros que mudam entre bloqueio e desbloqueio:**
+> | Parâmetro | Bloqueio | Desbloqueio |
+> |---|---|---|
+> | `subscriberId` | Matrícula do beneficiário | **Mesmo valor** |
+> | `reason` | Código do motivo (ex: `000001`) | `"000004"` (fixo) |
+> | `blockDate` | Data do bloqueio | **Data do bloqueio - 1 dia** |
+> | `loginUser` | Nome do operador | **Mesmo valor** |
+> | Endpoint | `POST .../blockProtocol` | **Mesmo endpoint** |
 
 ---
 
@@ -273,7 +337,7 @@ Retorna os metadados do contrato necessários para as demais operações. **Deve
 | `cnpjmedicar` | ✅ Sim | CNPJ da filial Medicar **sem pontuação** |
 | `grupoempresa` | ✅ Sim | Código do grupo de empresa |
 | `contrato` | ✅ Sim | Número do contrato — **é o mesmo valor que `BBA_SUBCON`** |
-| `cgcbeneficiario` | ❌ Não | CPF do beneficiário (sem pontuação). Ao informar, retorna a `BBA_MATRIC` desse beneficiário específico. Use este parâmetro para obter o `subscriberId` (matrícula) antes de um bloqueio. |
+| `cgcbeneficiario` | ❌ Não | CPF do beneficiário (sem pontuação). Ao informar, retorna a `BBA_MATRIC` desse beneficiário específico. Use este parâmetro para obter o `subscriberId` (matrícula) antes de um bloqueio ou desbloqueio. |
 
 **Response de sucesso:**
 
@@ -297,7 +361,7 @@ Retorna os metadados do contrato necessários para as demais operações. **Deve
 | Campo da resposta | Onde usar |
 |---|---|
 | `tenantid` | Header obrigatório em todas as chamadas de manutenção |
-| `BBA_MATRIC` | `BBA_MATRIC` no MASTERBBA (inclusão de dependente) e `subscriberId` no bloqueio |
+| `BBA_MATRIC` | `BBA_MATRIC` no MASTERBBA (inclusão de dependente) e `subscriberId` no bloqueio/desbloqueio |
 | `BBA_CODINT` | `BBA_CODINT` no MASTERBBA da inclusão de titular |
 | `BBA_CODEMP` | `BBA_CODEMP` no MASTERBBA da inclusão de titular |
 | `BBA_CONEMP` | `BBA_CONEMP` no MASTERBBA |
@@ -532,7 +596,7 @@ Edita um protocolo de inclusão ainda **não analisado ou finalizado**.
 
 ### 5.5 Alteração de Dados Cadastrais — PLAltBenModel
 
-Cria um protocolo de solicitação de alteração de dados de um beneficiário **já ativo**.
+Cria um protocolo de solicitação de alteração de dados de um beneficiário **já ativo**. Para a lista de campos permitidos, consulte a [seção 6.4](#64-detailb7l—-campos-a-alterar-plaltbenmodel).
 
 | Atributo | Valor |
 |---|---|
@@ -598,9 +662,11 @@ Cria um protocolo de solicitação de alteração de dados de um beneficiário *
 
 ---
 
-### 5.6 Bloqueio/Cancelamento de Beneficiários
+### 5.6 Bloqueio e Desbloqueio de Beneficiários
 
-Registra o bloqueio ou cancelamento de um beneficiário.
+Registra o bloqueio ou desbloqueio de um beneficiário. Ambas as operações utilizam o **mesmo endpoint**, diferenciando-se apenas pelo valor dos campos `reason` e `blockDate`.
+
+> **Importante:** O desbloqueio depende da data utilizada no bloqueio. Após um bloqueio bem-sucedido, é necessário armazenar a `blockDate` enviada, pois o desbloqueio exigirá uma data um dia anterior a ela. Consulte a [seção 4.4](#44-bloqueio-de-beneficiário) e a [seção 4.5](#45-desbloqueio-de-beneficiário) para detalhes sobre o fluxo recomendado.
 
 | Atributo | Valor |
 |---|---|
@@ -712,13 +778,35 @@ Authorization: Bearer {{access_token}}
 | `DIRECTORY` | ❌ Não | string | URL do arquivo a anexar - Não utilizar|
 | `FILENAME` | ❌ Não | string | Nome do arquivo a anexar - Não utilizar|
 
-### 6.5 Campos do Bloqueio
+**Campos alteráveis via API (PLAltBenModel):**
+
+Abaixo estão os campos da tabela **BA1** que podem ser alterados por este endpoint. Os demais campos do cadastro não devem ser considerados alteráveis por esta via.
+
+| Campo BA1 | Descrição |
+|---|---|
+| `BA1_NOMUSR` | Nome do beneficiário |
+| `BA1_DATNAS` | Data de nascimento |
+| `BA1_SEXO` | Sexo |
+| `BA1_CEPUSR` | CEP |
+| `BA1_ENDERE` | Logradouro |
+| `BA1_NR_END` | Número do endereço |
+| `BA1_COMEND` | Complemento |
+| `BA1_BAIRRO` | Bairro |
+| `BA1_MUNICI` | Município |
+| `BA1_ESTADO` | Estado (UF) |
+| `BA1_DDD` | DDD do telefone |
+| `BA1_TELEFO` | Telefone |
+| `BA1_EMAIL` | E-mail |
+
+> Os demais campos da tabela BA1 **não devem ser alterados** por este endpoint. Tente alterar um campo não listado acima resultará em rejeição do protocolo.
+
+### 6.5 Campos do Bloqueio / Desbloqueio
 
 | Campo JSON | Parâmetro TOTVS | Obrigatório | Descrição | Como obter |
 |---|---|---|---|---|
 | `subscriberId` | `BBA_MATRIC` | ✅ Sim | Matrícula do beneficiário | `GET /contract?cgcbeneficiario={{CPF}}` → campo `BBA_MATRIC` |
-| `reason` | `B9G_COD` | ✅ Sim | Código do motivo do bloqueio | `GET .../v1/reasons` |
-| `blockDate` | — | ✅ Sim | Data de vigência do bloqueio — formato `YYYY-MM-DD` | Definida pelo sistema cliente |
+| `reason` | `B9G_COD` | ✅ Sim | Código do motivo: motivo do bloqueio (ex: `000001`) ou `"000004"` para desbloqueio | `GET .../v1/reasons` |
+| `blockDate` | — | ✅ Sim | Data de vigência do bloqueio (ou data do bloqueio - 1 dia para desbloqueio) — formato `YYYY-MM-DD` | Definida pelo sistema cliente |
 | `loginUser` | — | ✅ Sim | Nome do operador que solicitou o bloqueio | Definida pelo sistema cliente |
 
 ---
@@ -779,8 +867,16 @@ Quando se inclui um titular, os dados na seção `DETAILB2N` **devem ser idênti
   - Sem necessidade de análise → `BBA_STATUS = 7` (Aprovado Automaticamente) → BA1 atualizada imediatamente
   - Com necessidade de análise → `BBA_STATUS = 2` (Em Análise) → aprovação manual necessária
 - O Layout de alteração usa **exclusivamente a tabela BA1**
+- Apenas os campos listados na [seção 6.4](#64-detailb7l—-campos-a-alterar-plaltbenmodel) são permitidos para alteração via este endpoint
 
-### 7.9 Edição e exclusão de protocolos
+### 7.9 Bloqueio e desbloqueio de beneficiário
+
+- O bloqueio utiliza o mesmo endpoint do desbloqueio (`POST .../v1/beneficiaries/blockProtocol`)
+- A diferenciação entre bloqueio e desbloqueio é feita pelos campos `reason` e `blockDate`
+- Após um bloqueio bem-sucedido, armazenar a `blockDate` para uso no desbloqueio
+- O desbloqueio deve enviar `reason` = `"000004"` e `blockDate` = data do bloqueio - 1 dia
+
+### 7.10 Edição e exclusão de protocolos
 
 - Apenas protocolos com status **não analisado e não finalizado** podem ser editados (PUT) ou excluídos (DELETE)
 - Para PLIncBenModel, o PUT usa `operation: 4`; para DELETE, usa `operation: 5`
@@ -821,6 +917,7 @@ Mesmo valores numéricos devem ser enviados como strings. Exemplo: `"B2N_SEXO": 
 | Sexo | Apenas `"1"` ou `"2"` |
 | Data de nascimento | Formato `YYYYMMDD`, data válida |
 | Código do motivo de bloqueio | Deve existir na tabela B9G do sistema |
+| Código de desbloqueio | Deve ser `"000004"` (ver [seção 11.3](#113-motivos-de-bloqueio-b9g_cod)) |
 
 ---
 
@@ -1152,7 +1249,7 @@ tenantid: 01,006001
 
 ---
 
-### 10.5 Bloqueio/Cancelamento de Beneficiário
+### 10.5 Bloqueio de Beneficiário
 
 **Step 1 — Consultar o contrato com CPF do beneficiário para obter a matrícula:**
 
@@ -1176,6 +1273,36 @@ tenantid: 01,006001
   "subscriberId": "10010004152488005",
   "reason": "000001",
   "blockDate": "2025-10-09",
+  "loginUser": "NOME DO BENEFICIARIO"
+}
+```
+
+Após sucesso, armazenar `blockDate = 2025-10-09` para eventual desbloqueio futuro.
+
+---
+
+### 10.6 Desbloqueio de Beneficiário
+
+**Step 1 — Consultar o contrato com CPF do beneficiário para obter a matrícula** (caso não tenha sido armazenada):
+
+```
+GET .../contract?cnpjmedicar=...&grupoempresa=...&contrato=...&cgcbeneficiario={{CPF}}
+```
+
+**Step 2 — Desbloquear** (mesmo endpoint do bloqueio, com `reason` = `000004` e `blockDate` um dia anterior):
+
+```
+POST https://medicar146708.protheus.cloudtotvs.com.br:1356/rest/totvsHealthPlans/familyContract/v1/beneficiaries/blockProtocol
+Authorization: Bearer ...
+Content-Type: application/json
+tenantid: 01,006001
+```
+
+```json
+{
+  "subscriberId": "10010004152488005",
+  "reason": "000004",
+  "blockDate": "2025-10-08",
   "loginUser": "NOME DO BENEFICIARIO"
 }
 ```
@@ -1228,6 +1355,7 @@ Referência: **SX5 tabela 33** do TOTVS.
 | `000001` | DESLIGAMENTO DA EMPRESA |
 | `000002` | FINANCEIRO |
 | `000003` | CADASTRO INDEVIDO |
+| `000004` | DESBLOQUEIO |
 
 }} Esta tabela pode conter outros motivos configurados no ambiente. Consultar `GET .../v1/reasons` para lista completa e atualizada.
 
@@ -1307,6 +1435,11 @@ R: Sim. A collection Postman confirma: `contrato = NUMERO CONTRATO (MESMO NUMERO
 
 **P: Como obtenho a `BBA_MATRIC` de um beneficiário específico para fazer um bloqueio?**  
 R: Chame o endpoint de Consulta de Dados do Contrato com o CPF do beneficiário no parâmetro `cgcbeneficiario`. O campo `BBA_MATRIC` na resposta é o `subscriberId` a ser usado no bloqueio.
+
+---
+
+**P: Como faço para desbloquear um beneficiário?**  
+R: Utilize o mesmo endpoint do bloqueio (`POST .../v1/beneficiaries/blockProtocol`), enviando `reason` = `"000004"` e `blockDate` com a data de um dia anterior à data utilizada no bloqueio. É necessário armazenar a `blockDate` do bloqueio para poder calcular a data correta do desbloqueio.
 
 ---
 
@@ -1395,6 +1528,7 @@ Body: operation:3 + MASTERBBA só com BBA_MATRIC + DETAILB2N + DETAILANEXO
 GET .../contract?...&cgcbeneficiario={{CPF}}  → obter BBA_MATRIC
 POST .../rest/fwmodel/PLAltBenModel/
 Body: operation:3 + BBA_MATRIC + DETAILB7L (campos a alterar) + DETAILANEXO
+→ Utilizar apenas campos permitidos (consultar seção 6.4)
 ```
 
 **Passo 7 — Bloquear beneficiário**
@@ -1404,6 +1538,14 @@ GET .../contract?...&cgcbeneficiario={{CPF}}  → obter BBA_MATRIC (= subscriber
 GET .../v1/reasons  → obter código do motivo
 POST .../v1/beneficiaries/blockProtocol
 Body: { subscriberId, reason, blockDate, loginUser }
+→ Armazenar blockDate para eventual desbloqueio
+```
+
+**Passo 7b — Desbloquear beneficiário**
+
+```
+POST .../v1/beneficiaries/blockProtocol
+Body: { subscriberId, reason: "000004", blockDate: (blockDate_armazenada - 1 dia), loginUser }
 ```
 
 **Passo 8 — Implementar tratamento de erros**
@@ -1418,7 +1560,7 @@ Body: { subscriberId, reason, blockDate, loginUser }
 
 - URL: `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest`
 - `tenantid`: `01,001001` (verificar get de consulta de dados do contrato)
-- Executar todos os fluxos: inclusão, edição, alteração, bloqueio
+- Executar todos os fluxos: inclusão, edição, alteração, bloqueio, desbloqueio
 - Verificar os protocolos gerados na rotina PLSA977AB
 
 ---
