@@ -2,7 +2,7 @@
 
 **Versão do documento:** 2.0 
 **Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
-**Última revisão:** 2025
+**Última revisão:** 2026
 
 ---
 
