@@ -71,7 +71,7 @@ O bloqueio e o desbloqueio agem diretamente, sem necessidade de aprovação manu
                                                   ┌──────────▼────────┐
                                                   │  Protocolo gerado │
                                                   │  (aguarda análise │
-                                                  │  na PLSA977AB)    │
+                                                  │   na PLSA977AB)   │
                                                   └───────────────────┘
 ```
 
@@ -259,7 +259,7 @@ blockDate = 2026-05-15
 > | `subscriberId` | Matrícula do beneficiário | **Mesmo valor** |
 > | `reason` | Código do motivo (ex: `000001`) | `"000004"` (fixo) |
 > | `blockDate` | Data do bloqueio | **Data do bloqueio - 1 dia** |
-> | `loginUser` | Nome do operador | **Mesmo valor** |
+> | `loginUser` | Nome do beneficiário | **Mesmo valor** |
 > | Endpoint | `POST .../blockProtocol` | **Mesmo endpoint** |
 
 ---
@@ -807,7 +807,7 @@ Abaixo estão os campos da tabela **BA1** que podem ser alterados por este endpo
 | `subscriberId` | `BBA_MATRIC` | ✅ Sim | Matrícula do beneficiário | `GET /contract?cgcbeneficiario={{CPF}}` → campo `BBA_MATRIC` |
 | `reason` | `B9G_COD` | ✅ Sim | Código do motivo: motivo do bloqueio (ex: `000001`) ou `"000004"` para desbloqueio | `GET .../v1/reasons` |
 | `blockDate` | — | ✅ Sim | Data de vigência do bloqueio (ou data do bloqueio - 1 dia para desbloqueio) — formato `YYYY-MM-DD` | Definida pelo sistema cliente |
-| `loginUser` | — | ✅ Sim | Nome do operador que solicitou o bloqueio | Definida pelo sistema cliente |
+| `loginUser` | — | ✅ Sim | Nome do beneficiário | Definida pelo sistema cliente |
 
 ---
 
