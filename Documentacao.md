@@ -1,6 +1,6 @@
 # API de Integração de Beneficiários — Medicar
 
-**Versão do documento:** 2.1 
+**Versão do documento:** 2.2 
 **Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
 **Última revisão:** 2026
 
@@ -25,7 +25,7 @@ As operações disponíveis são:
 - **Inclusão** de novos beneficiários (titulares e dependentes)
 - **Edição** de um protocolo de inclusão ainda pendente de análise
 - **Alteração** de dados cadastrais de beneficiários já ativos
-- **Bloqueio** e **Desbloqueio** de beneficiários
+- **Bloqueio** e **Desbloqueio** de beneficiários (operação sobre um titular é replicada automaticamente para todos os seus dependentes)
 
 ### Como funciona o processo?
 
@@ -65,13 +65,13 @@ O bloqueio e o desbloqueio agem diretamente, sem necessidade de aprovação manu
 └─────────┘    └─────────┘    └──────────────────┘    │  (Inclusão,  │
                     │                   │             │  Alteração,  │
                access_token        tenantid +         │  Bloqueio ou │
-                                                      │  Desbloqueio)│
+                                                        │  Desbloqueio)│
                                    BBA_MATRIC         └──────┬───────┘
                                                              │
                                                   ┌──────────▼────────┐
                                                   │  Protocolo gerado │
                                                   │  (aguarda análise │
-                                                  │   na PLSA977AB)   │
+                                                  │  na PLSA977AB)    │
                                                   └───────────────────┘
 ```
 
@@ -170,8 +170,7 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 - Para titular: enviar todos os campos do `MASTERBBA` + dados em `DETAILB2N`
 - Para dependente: enviar apenas `BBA_MATRIC` no `MASTERBBA` + dados em `DETAILB2N`
 - A URL não inclui PK — a identificação do protocolo é feita pelos dados do beneficiário
-
-}} **Atenção:** Protocolos **já analisados ou finalizados** não podem ser editados.
+ **Atenção:** Protocolos **já analisados ou finalizados** não podem ser editados.
 
 ---
 
@@ -202,6 +201,8 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 - Requer um código de motivo (`reason`) da tabela B9G
 - A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio
 
+⚠️ **Importante:** o bloqueio é feito sempre pela matrícula do **titular** e afeta automaticamente **todos os seus dependentes**. Não é possível bloquear um dependente isoladamente, mantendo o titular e os demais dependentes ativos — o bloqueio do titular bloqueia toda a família vinculada a ele.
+
 **Após sucesso:** A aplicação deve armazenar a data enviada em `blockDate` para eventual uso no desbloqueio futuro.
 
 ---
@@ -215,6 +216,8 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 - O que muda em relação ao bloqueio são apenas dois parâmetros:
   - `reason` deve ser `"000004"` (código de desbloqueio)
   - `blockDate` deve ser **um dia anterior** à data utilizada no bloqueio
+
+⚠️ **Importante:** assim como no bloqueio, o desbloqueio é feito pela matrícula do **titular** e reativa automaticamente **todos os seus dependentes**. Não é possível desbloquear apenas o titular mantendo os dependentes bloqueados (ou vice-versa) — o desbloqueio do titular desbloqueia toda a família vinculada a ele.
 
 > **Por que um dia anterior?** Essa regra existe para que o sistema compreenda a transição de estado: o bloqueio tem vigência a partir da `blockDate` informada, e o desbloqueio com uma data anterior indica que a vigência do bloqueio é encerrada. Utilizar a mesma data ou uma data posterior não produziria o efeito de desbloqueio esperado.
 
@@ -259,8 +262,10 @@ blockDate = 2026-05-15
 > | `subscriberId` | Matrícula do beneficiário | **Mesmo valor** |
 > | `reason` | Código do motivo (ex: `000001`) | `"000004"` (fixo) |
 > | `blockDate` | Data do bloqueio | **Data do bloqueio - 1 dia** |
-> | `loginUser` | Nome do beneficiário | **Mesmo valor** |
+> | `loginUser` | Nome do operador | **Mesmo valor** |
 > | Endpoint | `POST .../blockProtocol` | **Mesmo endpoint** |
+
+> **Efeito sobre os dependentes:** como o `subscriberId` utilizado é sempre a matrícula do titular, tanto o bloqueio quanto o desbloqueio se propagam automaticamente para todos os dependentes da família.
 
 ---
 
@@ -658,7 +663,7 @@ Cria um protocolo de solicitação de alteração de dados de um beneficiário *
 }
 ```
 
-}} Para alterar múltiplos campos, adicione múltiplos objetos no array `items` com `"id": 1`, `"id": 2`, etc.
+Para alterar múltiplos campos, adicione múltiplos objetos no array `items` com `"id": 1`, `"id": 2`, etc.
 
 ---
 
@@ -667,6 +672,8 @@ Cria um protocolo de solicitação de alteração de dados de um beneficiário *
 Registra o bloqueio ou desbloqueio de um beneficiário. Ambas as operações utilizam o **mesmo endpoint**, diferenciando-se apenas pelo valor dos campos `reason` e `blockDate`.
 
 > **Importante:** O desbloqueio depende da data utilizada no bloqueio. Após um bloqueio bem-sucedido, é necessário armazenar a `blockDate` enviada, pois o desbloqueio exigirá uma data um dia anterior a ela. Consulte a [seção 4.4](#44-bloqueio-de-beneficiário) e a [seção 4.5](#45-desbloqueio-de-beneficiário) para detalhes sobre o fluxo recomendado.
+
+> **Importante:** o `subscriberId` enviado deve ser sempre a matrícula (`BBA_MATRIC`) do **titular**. Bloquear ou desbloquear um titular afeta automaticamente todos os dependentes vinculados à sua família — não existe operação de bloqueio/desbloqueio isolada para um dependente.
 
 | Atributo | Valor |
 |---|---|
@@ -714,7 +721,7 @@ Authorization: Bearer {{access_token}}
 | `BBA_VERCON` | ⚠️ Obrig. p/ PJ | string | Versão do Contrato | `GET /contract?` → `BBA_VERCON` |
 | `BBA_SUBCON` | ⚠️ Obrig. p/ PJ | string | Código do SubContrato (tabela BQC) | `GET /contract?` → `BBA_SUBCON` |
 | `BBA_VERSUB` | ⚠️ Obrig. p/ PJ | string | Versão do SubContrato | `GET /contract?` → `BBA_VERSUB` |
-| `BBA_EMPBEN` | ✅ Sim | string | Nome completo do beneficiário titular | Dado do cliente |
+| `BBA_EMPBEN` | ✅ Sim | string | Nome completo do beneficiário titular. Deve seguir o padrão ANS — ver [seção 8.5](#85-regras-de-preenchimento-de-nome-padrão-ans) | Dado do cliente |
 | `BBA_CODPRO` | ✅ Sim | string | Código do plano do titular | Fornecido pela Medicar |
 | `BBA_VERSAO` | ✅ Sim | string | Versão do plano do titular | Fornecido pela Medicar |
 | `BBA_CPFTIT` | ✅ Sim | string | CPF do titular (11 dígitos, sem pontuação) | Dado do cliente |
@@ -727,7 +734,7 @@ Authorization: Bearer {{access_token}}
 
 | Campo | Obrigatório | Tipo | Descrição | Valores/Formato |
 |---|---|---|---|---|
-| `B2N_NOMUSR` | ✅ Sim | string | Nome completo do beneficiário | Texto livre |
+| `B2N_NOMUSR` | ✅ Sim | string | Nome completo do beneficiário. Deve seguir o padrão ANS — ver [seção 8.5](#85-regras-de-preenchimento-de-nome-padrão-ans) | Texto livre |
 | `B2N_DATNAS` | ✅ Sim | string | Data de nascimento | `YYYYMMDD` ex: `"19850304"` |
 | `B2N_GRAUPA` | ✅ Sim | string | Código do grau de parentesco (tabela BRP) | Ver [seção 11.1](#111-grau-de-parentesco-b2n_graupa) |
 | `B2N_ESTCIV` | ✅ Sim | string | Código do estado civil (SX5 tabela 33) | Ver [seção 11.2](#112-estado-civil-b2n_estciv) |
@@ -784,7 +791,7 @@ Abaixo estão os campos da tabela **BA1** que podem ser alterados por este endpo
 
 | Campo BA1 | Descrição |
 |---|---|
-| `BA1_NOMUSR` | Nome do beneficiário |
+| `BA1_NOMUSR` | Nome do beneficiário. Deve seguir o padrão ANS — ver [seção 8.5](#85-regras-de-preenchimento-de-nome-padrão-ans) |
 | `BA1_DATNAS` | Data de nascimento |
 | `BA1_SEXO` | Sexo |
 | `BA1_CEPUSR` | CEP |
@@ -807,7 +814,9 @@ Abaixo estão os campos da tabela **BA1** que podem ser alterados por este endpo
 | `subscriberId` | `BBA_MATRIC` | ✅ Sim | Matrícula do beneficiário | `GET /contract?cgcbeneficiario={{CPF}}` → campo `BBA_MATRIC` |
 | `reason` | `B9G_COD` | ✅ Sim | Código do motivo: motivo do bloqueio (ex: `000001`) ou `"000004"` para desbloqueio | `GET .../v1/reasons` |
 | `blockDate` | — | ✅ Sim | Data de vigência do bloqueio (ou data do bloqueio - 1 dia para desbloqueio) — formato `YYYY-MM-DD` | Definida pelo sistema cliente |
-| `loginUser` | — | ✅ Sim | Nome do beneficiário | Definida pelo sistema cliente |
+| `loginUser` | — | ✅ Sim | Nome do operador que solicitou o bloqueio | Definida pelo sistema cliente |
+
+> `subscriberId` deve corresponder sempre à matrícula do titular. O bloqueio/desbloqueio é replicado automaticamente para todos os dependentes vinculados a essa matrícula.
 
 ---
 
@@ -875,6 +884,7 @@ Quando se inclui um titular, os dados na seção `DETAILB2N` **devem ser idênti
 - A diferenciação entre bloqueio e desbloqueio é feita pelos campos `reason` e `blockDate`
 - Após um bloqueio bem-sucedido, armazenar a `blockDate` para uso no desbloqueio
 - O desbloqueio deve enviar `reason` = `"000004"` e `blockDate` = data do bloqueio - 1 dia
+- **Bloqueio e desbloqueio são operações de família:** ambos são executados pela matrícula do titular e afetam automaticamente todos os dependentes vinculados a ele. Bloquear o titular bloqueia todos os dependentes; desbloquear o titular desbloqueia todos os dependentes. Não há suporte para bloquear/desbloquear um único dependente sem afetar o restante da família.
 
 ### 7.10 Edição e exclusão de protocolos
 
@@ -895,7 +905,7 @@ Quando se inclui um titular, os dados na seção `DETAILB2N` **devem ser idênti
 | `B2N_DATADT` | `YYYYMMDD` | Nenhum | `"20250101"` |
 | `blockDate` | `YYYY-MM-DD` | Hifens | `"2025-10-09"` |
 
-}} ⚠️ Os formatos de data são **diferentes** entre os endpoints de inclusão/edição e o de bloqueio.
+⚠️ Os formatos de data são **diferentes** entre os endpoints de inclusão/edição e o de bloqueio.
 
 ### 8.2 Formato de CPF
 
@@ -914,10 +924,25 @@ Mesmo valores numéricos devem ser enviados como strings. Exemplo: `"B2N_SEXO": 
 | CPF do dependente | Obrigatório; 11 dígitos numéricos sem pontuação  |
 | Grau de parentesco | Código válido da tabela BRP (ver seção 11.1) |
 | Estado civil | Código válido da SX5 tabela 33 (ver seção 11.2) |
+| Nome do beneficiário | Deve seguir o padrão de preenchimento de nome da ANS (ver [seção 8.5](#85-regras-de-preenchimento-de-nome-padrão-ans)) |
 | Sexo | Apenas `"1"` ou `"2"` |
 | Data de nascimento | Formato `YYYYMMDD`, data válida |
 | Código do motivo de bloqueio | Deve existir na tabela B9G do sistema |
 | Código de desbloqueio | Deve ser `"000004"` (ver [seção 11.3](#113-motivos-de-bloqueio-b9g_cod)) |
+
+### 8.5 Regras de Preenchimento de Nome (Padrão ANS)
+
+Os campos de nome do beneficiário — `BBA_EMPBEN` (titular, no `MASTERBBA`), `B2N_NOMUSR` (inclusão/edição) e `BA1_NOMUSR` (alteração cadastral) — devem seguir o padrão de validação de nomes exigido pela ANS. O protocolo é rejeitado quando o nome enviado:
+
+- Contém **apenas uma palavra** (é necessário informar nome e sobrenome);
+- Possui algum nome — prenome, nome do meio ou sobrenome — com **uma única letra**, exceto quando o primeiro nome for `D`, `I`, `O`, `U` ou `Y` (com ou sem acento), ou quando o último nome for `I`, `O`, `U` ou `Y` (com ou sem acento);
+- Contém a **mesma letra repetida sequencialmente mais de duas vezes**;
+- Contém **qualquer algarismo** (`0` a `9`);
+- Contém **caracteres especiais**, incluindo: `@` `*` `{` `}` `^` `\` `!` `?` `<` `>` `(` `)` `.` `,` `#` `~` `%` `;` `=` `+` `&` `/` `$` `[` `]` `"` `'`
+
+> **Conectivos aceitos:** as letras **"e"** e **"y"** isoladas entre nomes são validadas normalmente, por serem tratadas como conectivos (ex.: "Maria e Silva", "João y Souza").
+
+Essa validação é aplicada pela operadora durante a análise do protocolo (rotina **PLSA977AB**). Nomes fora do padrão resultam em rejeição do protocolo de inclusão, edição ou alteração cadastral — recomenda-se validar o nome no sistema cliente antes do envio, para reduzir rejeições.
 
 ---
 
@@ -934,7 +959,7 @@ Mesmo valores numéricos devem ser enviados como strings. Exemplo: `"B2N_SEXO": 
 | `404 Not Found` | Recurso não encontrado | Verificar parâmetros enviados |
 | `500 Internal Server Error` | Erro interno no Protheus | Verificar payload; acionar suporte Medicar |
 
-}} Os testes do Postman esperam `200 ou 201` para o token; `200` para consultas; `200, 201 ou 204` para PUT; e `200, 202 ou 204` para o cancelamento.
+Os testes do Postman esperam `200 ou 201` para o token; `200` para consultas; `200, 201 ou 204` para PUT; e `200, 202 ou 204` para o cancelamento.
 
 ### 9.2 Erros de negócio conhecidos
 
@@ -951,7 +976,7 @@ Mesmo valores numéricos devem ser enviados como strings. Exemplo: `"B2N_SEXO": 
 }
 ```
 
-}} **Informação não encontrada na documentação fornecida:** O formato exato de resposta de erro para PLIncBenModel, PLAltBenModel e blockProtocol não foi exemplificado. Tratar qualquer resposta com campo `msgerror` ou HTTP ≠ 2xx como erro.
+**Informação não encontrada na documentação fornecida:** O formato exato de resposta de erro para PLIncBenModel, PLAltBenModel e blockProtocol não foi exemplificado. Tratar qualquer resposta com campo `msgerror` ou HTTP ≠ 2xx como erro.
 
 ---
 
@@ -1357,7 +1382,7 @@ Referência: **SX5 tabela 33** do TOTVS.
 | `000003` | CADASTRO INDEVIDO |
 | `000004` | DESBLOQUEIO |
 
-}} Esta tabela pode conter outros motivos configurados no ambiente. Consultar `GET .../v1/reasons` para lista completa e atualizada.
+Esta tabela pode conter outros motivos configurados no ambiente. Consultar `GET .../v1/reasons` para lista completa e atualizada.
 
 ### 11.4 Sexo
 
@@ -1443,6 +1468,11 @@ R: Utilize o mesmo endpoint do bloqueio (`POST .../v1/beneficiaries/blockProtoco
 
 ---
 
+**P: Se eu bloquear (ou desbloquear) o titular, os dependentes também são afetados?**  
+R: Sim. O bloqueio e o desbloqueio são feitos pela matrícula do titular e afetam automaticamente todos os seus dependentes: bloquear o titular bloqueia toda a família, e desbloquear o titular desbloqueia toda a família. Não é possível bloquear ou desbloquear um dependente isoladamente.
+
+---
+
 **P: Qual a diferença entre "Alteração" no Postman e a API PLAltBenModel?**  
 R: São coisas distintas. O **PUT no PLIncBenModel** (com `operation: 4`) edita um protocolo de *inclusão ainda pendente* — útil para corrigir dados antes da aprovação. O **POST no PLAltBenModel** cria um protocolo de *alteração cadastral* de um beneficiário já ativo no sistema.
 
@@ -1475,6 +1505,11 @@ R: Indica que o item não está marcado para exclusão. Em operações de PUT on
 
 **P: Como sei se o protocolo foi aprovado?**  
 R: Consulte via `GET .../PLIncBenModel/{{pk}}` ou `GET .../PLAltBenModel/{{pk}}`. Status conhecidos: `2` = Em Análise, `7` = Aprovado Automaticamente.
+
+---
+
+**P: Existe alguma regra específica para o preenchimento do nome do beneficiário?**  
+R: Sim. Os campos de nome seguem o padrão de validação da ANS, que não aceita nome com uma única palavra, números, caracteres especiais, nomes de uma única letra (com poucas exceções) ou repetição sequencial de letras. Veja o detalhamento completo na [seção 8.5](#85-regras-de-preenchimento-de-nome-padrão-ans).
 
 ---
 
@@ -1541,12 +1576,16 @@ Body: { subscriberId, reason, blockDate, loginUser }
 → Armazenar blockDate para eventual desbloqueio
 ```
 
+⚠️ Use sempre a matrícula do **titular** — o bloqueio afeta automaticamente todos os dependentes da família.
+
 **Passo 7b — Desbloquear beneficiário**
 
 ```
 POST .../v1/beneficiaries/blockProtocol
 Body: { subscriberId, reason: "000004", blockDate: (blockDate_armazenada - 1 dia), loginUser }
 ```
+
+⚠️ Da mesma forma, desbloquear o titular desbloqueia automaticamente todos os seus dependentes.
 
 **Passo 8 — Implementar tratamento de erros**
 
