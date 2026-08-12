@@ -65,7 +65,7 @@ O bloqueio e o desbloqueio agem diretamente, sem necessidade de aprovação manu
 └─────────┘    └─────────┘    └──────────────────┘    │  (Inclusão,  │
                     │                   │             │  Alteração,  │
                access_token        tenantid +         │  Bloqueio ou │
-                                                        │  Desbloqueio)│
+                                                      │  Desbloqueio)│
                                    BBA_MATRIC         └──────┬───────┘
                                                              │
                                                   ┌──────────▼────────┐
