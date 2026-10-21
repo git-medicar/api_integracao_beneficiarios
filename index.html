@@ -18,7 +18,6 @@
             background-color: #f8f9fa;
         }
 
-        /* Header */
         .header {
             background: linear-gradient(90deg, white 0%, #bb2d2d 100%);
             color: white;
@@ -39,15 +38,17 @@
         .logo {
             height: 48px;
             width: auto;
-            filter: brightness(1.1);
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
-        .logo svg {
+        .logo img {
             height: 100%;
             width: auto;
+            display: block;
+            object-fit: contain;
         }
 
         .header h1 {
@@ -130,7 +131,6 @@
             border-left-color: #bb2d2d;
         }
 
-        /* Indentação para subitens */
         .sidebar li[data-level="2"] a {
             padding-left: 28px;
             font-size: 13px;
@@ -350,7 +350,6 @@
             display: block;
         }
 
-        /* Scrollbar customizado */
         .sidebar::-webkit-scrollbar {
             width: 8px;
         }
@@ -373,16 +372,7 @@
     <header class="header">
         <div class="header-content">
             <div class="logo">
-                <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                    <!-- Fundo circular -->
-                    <circle cx="60" cy="60" r="55" fill="#bb2d2d" opacity="0.9"/>
-                    
-                    <!-- Símbolo de saúde/coração -->
-                    <path d="M60 30 C60 30, 50 25, 45 35 C40 45, 45 55, 60 70 C75 55, 80 45, 75 35 C70 25, 60 30, 60 30" fill="white"/>
-                    
-                    <!-- Texto -->
-                    <text x="60" y="95" font-size="14" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial, sans-serif">MEDICAR</text>
-                </svg>
+                <img src="Logo%20Vertical.png" alt="Medicar" />
             </div>
             <h1>API de Integração de Beneficiários <span style="font-size: 14px; color: #2c3e50; font-weight: 400; vertical-align: middle;"></span></h1>
         </div>
@@ -418,20 +408,20 @@
             }
         });
 
-        // Fetch and render markdown from Documentacao.md
-        fetch('https://raw.githubusercontent.com/git-medicar/api_integracao_beneficiarios/main/Documentacao.md')
-            .then(response => response.text())
+        fetch('https://raw.githubusercontent.com/git-medicar/api_integracao_beneficiarios/gh-pages/Documentacao.md')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar a documentação.');
+                }
+                return response.text();
+            })
             .then(markdown => {
                 const html = md.render(markdown);
                 document.getElementById('content').innerHTML = html;
 
-                // Extract headings for TOC
                 const content = document.getElementById('content');
                 const headings = content.querySelectorAll('h2, h3, h4');
                 const toc = document.getElementById('toc');
-
-                let h2Index = -1;
-                let h3Index = -1;
 
                 headings.forEach((heading, index) => {
                     const id = heading.id || `heading-${index}`;
@@ -442,7 +432,6 @@
                     a.href = `#${id}`;
                     a.textContent = heading.textContent;
 
-                    // Define nível e atributo data-level para melhor controle CSS
                     if (heading.tagName === 'H3') {
                         li.setAttribute('data-level', '2');
                     } else if (heading.tagName === 'H4') {
@@ -455,7 +444,6 @@
                     toc.appendChild(li);
                 });
 
-                // Smooth scroll and active link tracking
                 window.addEventListener('scroll', updateActiveLink);
                 
                 function updateActiveLink() {
@@ -468,7 +456,6 @@
                         }
                     });
 
-                    // Show/hide back-to-top button
                     const backToTop = document.getElementById('backToTop');
                     if (scrollPos > 300) {
                         backToTop.classList.add('show');
@@ -477,12 +464,10 @@
                     }
                 }
 
-                // Back to top functionality
                 document.getElementById('backToTop').addEventListener('click', () => {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 });
 
-                // Smooth scroll for TOC links
                 toc.querySelectorAll('a').forEach(link => {
                     link.addEventListener('click', (e) => {
                         e.preventDefault();
