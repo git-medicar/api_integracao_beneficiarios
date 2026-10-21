@@ -1,6 +1,6 @@
 # API de Integração de Beneficiários — Medicar
 
-**Versão do documento:** 2.2  
+**Versão do documento:** 2.3  
 **Sistema:** ERP TOTVS Protheus — Módulo PLS (Planos de Saúde)  
 **Última revisão:** 2026
 
@@ -27,6 +27,7 @@ As operações disponíveis são:
 - Alteração de dados cadastrais de beneficiários já ativos
 - Bloqueio e Desbloqueio de beneficiários
 - Bloqueio ou desbloqueio sobre um titular é replicado automaticamente para todos os dependentes
+- Consulta da base completa de beneficiários por subcontrato
 
 ### Como funciona o processo?
 
@@ -160,6 +161,20 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 
 **Resultado:** Protocolo de inclusão gerado na rotina **PLSA977AB** para análise da operadora.
 
+**Status da solicitação:** Quando há uma request de inclusão de beneficiário, o usuário pode consultar o status da requisição. Os status serão:
+
+| Status | Descrição |
+|---|---|
+| `1` | Pendente de documentação |
+| `2` | Em análise |
+| `3` | Processado |
+| `4` | Aprovado |
+| `5` | Rejeitado |
+| `6` | Aprovado parcialmente |
+| `7` | Aprovado automaticamente |
+
+> Em solicitações de inclusão, o status `5` costuma indicar rejeição por duplicidade, como quando o CPF informado já está ativo no contrato.
+
 ---
 
 ### 4.2 Edição de Protocolo de Inclusão (PLIncBenModel — PUT)
@@ -204,6 +219,8 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 - A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio
 
 ⚠️ Importante: o bloqueio é feito sempre pela matrícula do titular e afeta automaticamente todos os seus dependentes. Não é possível bloquear um dependente isoladamente, mantendo o titular e os demais dependentes ativos — o bloqueio do titular bloqueia toda a família vinculada a ele.
+
+**A regra do campo `loginUser`:** no payload de bloqueio/desbloqueio, o campo `loginUser` deve ser enviado com o nome do beneficiário. A documentação antiga era ambígua, ora dizendo que era o nome do beneficiário, ora dando a entender que seria o login do usuário da API. A regra correta é: `loginUser` = nome do beneficiário. Não deve ser enviado o login da API.
 
 **Após sucesso:** A aplicação deve armazenar a data enviada em `blockDate` para eventual uso no desbloqueio futuro.
 
@@ -388,7 +405,65 @@ Retorna os metadados do contrato necessários para as demais operações. Deve s
 
 ---
 
-### 5.3 Inclusão de Beneficiários — PLIncBenModel POST
+### 5.3 Consulta de todos os beneficiários do subcontrato
+
+A API conta com consulta da base de todos os beneficiários ativos de um subcontrato. Ao enviar o código do subcontrato, a API retornará `Nome`, `CPF`, `BBA_MATRIC`, `Tipo do usuário (T = titular, D = dependente)`, `Data de Nascimento`, `Endereço`, `Municipio`, `DDD`, `Telefone` e `Data de Inclusão` de todos os beneficiários ativos.
+
+**Autenticação:** Deve ser realizada normalmente como nos outros endpoints.
+
+| Atributo | Valor |
+|---|---|
+| **Método** | `POST` |
+| **Autenticação** | `Authorization: Bearer {{access_token}}` |
+| **Homologação** | `https://medicar146708.protheus.cloudtotvs.com.br:1356/rest/medicarpls/contratos/beneficiario` |
+| **Produção** | `https://medicar146707.protheus.cloudtotvs.com.br:1307/rest/medicarpls/contratos/beneficiario` |
+
+**Body da request:**
+
+```json
+{
+  "subcontrato": "002110579"
+}
+```
+
+**Exemplo de retorno:**
+
+```json
+{
+  "beneficiarios": [
+    {
+      "matricula": "10010004999O7N009",
+      "cpf": "05099999902",
+      "beneficiario": "Roberto Carlos Cardoso Junior",
+      "tipo": "T",
+      "nascimento": "13/06/1976",
+      "endereco": "QD 4E CNJ. C CASA 13L",
+      "municipio": "BRASSILIA",
+      "ddd": "61",
+      "telefone": "9999992",
+      "inclusao": "12/07/2026"
+    },
+    {
+      "matricula": "1001000499CS3O007",
+      "cpf": "08999999957",
+      "beneficiario": "Raissa pereira",
+      "tipo": "T",
+      "nascimento": "28/06/2015",
+      "endereco": "",
+      "municipio": "",
+      "ddd": "",
+      "telefone": "61982000096",
+      "inclusao": "21/01/2026"
+    }
+  ]
+}
+```
+
+> Observação: a API retorna apenas os dados que foram informados pelo cliente na inclusão. Campos vazios ou não preenchidos não serão retornados nesta consulta.
+
+---
+
+### 5.4 Inclusão de Beneficiários — PLIncBenModel POST
 
 Cria um protocolo de solicitação de inclusão de novo beneficiário.
 
@@ -427,7 +502,7 @@ Cria um protocolo de solicitação de inclusão de novo beneficiário.
 |---|---|---|---|
 | `GET` | `.../PLIncBenModel/` | — | Lista todos os protocolos |
 | `GET` | `.../PLIncBenModel/{{pk}}` | — | Consulta protocolo específico |
-| `PUT` | `.../PLIncBenModel/` | `4` | Edita protocolo pendente (ver seção 5.4) |
+| `PUT` | `.../PLIncBenModel/` | `4` | Edita protocolo pendente (ver seção 5.5) |
 | `DELETE` | `.../PLIncBenModel/{{pk}}` | `5` | Exclui protocolo pendente |
 
 **Estrutura do Body (inclusão de titular — nova família):**
@@ -537,7 +612,7 @@ Cria um protocolo de solicitação de inclusão de novo beneficiário.
 
 ---
 
-### 5.4 Edição de Protocolo de Inclusão — PLIncBenModel PUT
+### 5.5 Edição de Protocolo de Inclusão — PLIncBenModel PUT
 
 Edita um protocolo de inclusão ainda não analisado ou finalizado.
 
@@ -601,7 +676,7 @@ Edita um protocolo de inclusão ainda não analisado ou finalizado.
 
 ---
 
-### 5.5 Alteração de Dados Cadastrais — PLAltBenModel
+### 5.6 Alteração de Dados Cadastrais — PLAltBenModel
 
 Cria um protocolo de solicitação de alteração de dados de um beneficiário já ativo. Para a lista de campos permitidos, consulte a [seção 6.4](#64-detailb7l--campos-a-alterar-plaltbenmodel).
 
@@ -669,7 +744,7 @@ Cria um protocolo de solicitação de alteração de dados de um beneficiário j
 
 ---
 
-### 5.6 Bloqueio e Desbloqueio de Beneficiários
+### 5.7 Bloqueio e Desbloqueio de Beneficiários
 
 Registra o bloqueio ou desbloqueio de um beneficiário. Ambas as operações utilizam o mesmo endpoint, diferenciando-se apenas pelo valor dos campos `reason` e `blockDate`.
 
@@ -816,7 +891,7 @@ Abaixo estão os campos da tabela **BA1** que podem ser alterados por este endpo
 | `subscriberId` | `BBA_MATRIC` | ✅ Sim | Matrícula do beneficiário | `GET /contract?cgcbeneficiario={{CPF}}` → campo `BBA_MATRIC` |
 | `reason` | `B9G_COD` | ✅ Sim | Código do motivo: motivo do bloqueio (ex: `000001`) ou `"000004"` para desbloqueio | `GET .../v1/reasons` |
 | `blockDate` | — | ✅ Sim | Data de vigência do bloqueio (ou data do bloqueio - 1 dia para desbloqueio) — formato `YYYY-MM-DD` | Definida pelo sistema cliente |
-| `loginUser` | — | ✅ Sim | Nome do operador que solicitou o bloqueio | Definida pelo sistema cliente |
+| `loginUser` | — | ✅ Sim | Nome do beneficiário que solicitou o bloqueio | Definida pelo sistema cliente |
 
 > `subscriberId` deve corresponder sempre à matrícula do titular. O bloqueio/desbloqueio é replicado automaticamente para todos os dependentes vinculados a essa matrícula.
 
