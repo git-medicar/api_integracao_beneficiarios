@@ -220,7 +220,7 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 
 ⚠️ Importante: o bloqueio é feito sempre pela matrícula do titular e afeta automaticamente todos os seus dependentes. Não é possível bloquear um dependente isoladamente, mantendo o titular e os demais dependentes ativos — o bloqueio do titular bloqueia toda a família vinculada a ele.
 
-**A regra do campo `loginUser`:** no payload de bloqueio/desbloqueio, o campo `loginUser` deve ser enviado com o nome do beneficiário. A documentação antiga era ambígua, ora dizendo que era o nome do beneficiário, ora dando a entender que seria o login do usuário da API. A regra correta é: `loginUser` = nome do beneficiário. Não deve ser enviado o login da API.
+**A regra do campo `loginUser`:** no payload de bloqueio/desbloqueio, o campo `loginUser` deve ser enviado com o nome do beneficiário. 
 
 **Após sucesso:** A aplicação deve armazenar a data enviada em `blockDate` para eventual uso no desbloqueio futuro.
 
@@ -281,7 +281,7 @@ blockDate = 2026-05-15
 > | `subscriberId` | Matrícula do beneficiário | Mesmo valor |
 > | `reason` | Código do motivo (ex: `000001`) | `"000004"` (fixo) |
 > | `blockDate` | Data do bloqueio | Data do bloqueio - 1 dia |
-> | `loginUser` | Nome do operador | Mesmo valor |
+> | `loginUser` | Nome do beneficiário | Mesmo valor |
 > | Endpoint | `POST .../blockProtocol` | Mesmo endpoint |
 >
 > **Efeito sobre os dependentes:** como o `subscriberId` utilizado é sempre a matrícula do titular, tanto o bloqueio quanto o desbloqueio se propagam automaticamente para todos os dependentes da família.
