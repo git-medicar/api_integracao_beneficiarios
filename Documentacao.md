@@ -218,7 +218,8 @@ Não confundir as duas operações. O `PUT` no `PLIncBenModel` apenas edita o pr
 - Requer um código de motivo (`reason`) da tabela B9G
 - A data de bloqueio é definida pelo sistema cliente (`blockDate`), normalmente a própria data do envio do bloqueio
 
-⚠️ Importante: o bloqueio é feito sempre pela matrícula do titular e afeta automaticamente todos os seus dependentes. Não é possível bloquear um dependente isoladamente, mantendo o titular e os demais dependentes ativos — o bloqueio do titular bloqueia toda a família vinculada a ele.
+⚠️ Importante: o bloqueio que for feito pela matrícula do titular afetará automaticamente todos os seus dependentes.
+  É possível bloquear um dependente isoladamente, mantendo o titular e os demais dependentes ativos. Mas o bloqueio do titular bloqueia toda a família vinculada a ele.
 
 **A regra do campo `loginUser`:** no payload de bloqueio/desbloqueio, o campo `loginUser` deve ser enviado com o nome do beneficiário. 
 
@@ -750,7 +751,7 @@ Registra o bloqueio ou desbloqueio de um beneficiário. Ambas as operações uti
 
 > **Importante:** O desbloqueio depende da data utilizada no bloqueio. Após um bloqueio bem-sucedido, é necessário armazenar a `blockDate` enviada, pois o desbloqueio exigirá uma data um dia anterior a ela. Consulte a seção 4.4 e a seção 4.5 para detalhes sobre o fluxo recomendado.
 
-> **Importante:** o `subscriberId` enviado deve ser sempre a matrícula (`BBA_MATRIC`) do titular. Bloquear ou desbloquear um titular afeta automaticamente todos os dependentes vinculados à sua família — não existe operação de bloqueio/desbloqueio isolada para um dependente.
+> **Importante:** o `subscriberId` enviado deve ser sempre a matrícula (`BBA_MATRIC`). Bloquear ou desbloquear um titular afeta automaticamente todos os dependentes vinculados à sua família, mas é possível o bloqueio/desbloqueio isolado para um dependente.
 
 | Atributo | Valor |
 |---|---|
